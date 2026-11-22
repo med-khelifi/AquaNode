@@ -56,13 +56,33 @@ class FirebaseService {
     return 'Something went wrong. Please try again.';
   }
 
+  /// Maps Cloud Firestore exceptions to user-friendly messages.
+  static String firestoreMessage(Object e) {
+    if (e is FirebaseException) {
+      if (e.code == 'permission-denied') {
+        return 'Access denied: Cloud Firestore security rules in your Firebase Console are blocking access. Update your Firestore rules to allow authenticated users.';
+      } else if (e.code == 'unavailable') {
+        return 'Network unavailable. Please check your internet connection.';
+      }
+      return e.message ?? e.code;
+    }
+    return e.toString();
+  }
+
   // ───────── DEVICES ─────────
-  /// Dashboard list (live).
-  Stream<List<Device>> watchDevices() => _devices
-      .where('ownerUid', isEqualTo: uid)
-      .orderBy('name')
-      .snapshots()
-      .map((s) => s.docs.map(Device.fromDoc).toList());
+  /// Dashboard list (live), memory sorted to avoid composite index requirements.
+  Stream<List<Device>> watchDevices() {
+    final currentUid = _auth.currentUser?.uid;
+    if (currentUid == null) return const Stream.empty();
+    return _devices
+        .where('ownerUid', isEqualTo: currentUid)
+        .snapshots()
+        .map((s) {
+          final list = s.docs.map(Device.fromDoc).toList();
+          list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+          return list;
+        });
+  }
 
   /// One device (live).
   Stream<Device?> watchDevice(String deviceId) =>
@@ -77,30 +97,56 @@ class FirebaseService {
   /// Latest sample of one device (live).
   Stream<Measurement?> watchLatest(String deviceId) => _measurements
       .where('deviceId', isEqualTo: deviceId)
-      .orderBy('sampledAt', descending: true)
-      .limit(1)
       .snapshots()
-      .map((s) => s.docs.isEmpty ? null : Measurement.fromDoc(s.docs.first));
+      .map((s) {
+        if (s.docs.isEmpty) return null;
+        final list = s.docs.map(Measurement.fromDoc).toList()
+          ..sort((a, b) => b.sampledAt.compareTo(a.sampledAt));
+        return list.firstOrNull;
+      });
 
   /// Samples of one device since [since], oldest first. Bad sensor reads removed.
   Future<List<Measurement>> history(String deviceId, DateTime since, {int? limit}) async {
-    var q = _measurements
-        .where('deviceId', isEqualTo: deviceId)
-        .where('sampledAt', isGreaterThanOrEqualTo: Timestamp.fromDate(since))
-        .orderBy('sampledAt');
-    if (limit != null) q = q.limit(limit);
-    final snap = await q.get();
-    return snap.docs.map(Measurement.fromDoc).where((m) => m.isPlausible).toList();
+    try {
+      final snap = await _measurements
+          .where('deviceId', isEqualTo: deviceId)
+          .get()
+          .timeout(const Duration(seconds: 5));
+      final items = snap.docs
+          .map(Measurement.fromDoc)
+          .where((m) =>
+              m.isPlausible &&
+              (m.sampledAt.isAfter(since) || m.sampledAt.isAtSameMomentAs(since)))
+          .toList()
+        ..sort((a, b) => a.sampledAt.compareTo(b.sampledAt));
+      if (limit != null && items.length > limit) {
+        return items.sublist(items.length - limit);
+      }
+      return items;
+    } catch (_) {
+      return [];
+    }
   }
 
   /// Samples from ALL of the user's devices since [since] (for aggregates).
   Future<List<Measurement>> historyAllDevices(DateTime since) async {
-    final snap = await _measurements
-        .where('ownerUid', isEqualTo: uid)
-        .where('sampledAt', isGreaterThanOrEqualTo: Timestamp.fromDate(since))
-        .orderBy('sampledAt')
-        .get();
-    return snap.docs.map(Measurement.fromDoc).where((m) => m.isPlausible).toList();
+    final currentUid = _auth.currentUser?.uid;
+    if (currentUid == null) return [];
+    try {
+      final snap = await _measurements
+          .where('ownerUid', isEqualTo: currentUid)
+          .get()
+          .timeout(const Duration(seconds: 5));
+      return snap.docs
+          .map(Measurement.fromDoc)
+          .where((m) =>
+              m.isPlausible &&
+              (m.sampledAt.isAfter(since) || m.sampledAt.isAtSameMomentAs(since)))
+          .toList()
+        ..sort((a, b) => a.sampledAt.compareTo(b.sampledAt));
+    } catch (_) {
+      return [];
+    }
   }
 
   // ───────── COMMANDS ─────────
@@ -117,10 +163,16 @@ class FirebaseService {
   /// Latest commands for a device.
   Stream<List<Command>> watchCommands(String deviceId, {int limit = 20}) => _commands
       .where('deviceId', isEqualTo: deviceId)
-      .orderBy('createdAt', descending: true)
-      .limit(limit)
       .snapshots()
-      .map((s) => s.docs.map(Command.fromDoc).toList());
+      .map((s) {
+        final list = s.docs.map(Command.fromDoc).toList();
+        list.sort((a, b) {
+          final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+          return bDate.compareTo(aDate);
+        });
+        return list.take(limit).toList();
+      });
 
   /// Only allowed while the command is still pending.
   Future<void> cancelCommand(String commandId) =>

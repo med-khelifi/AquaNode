@@ -40,10 +40,13 @@ class DeviceRepository {
     }
   }
 
-  /// Fetches devices from Firestore once.
+  /// Fetches devices from Firestore with safety timeout.
   Future<List<Device>> getDevices() async {
     try {
-      final snap = await _service.watchDevices().first;
+      final snap = await _service.watchDevices().first.timeout(
+        const Duration(seconds: 4),
+        onTimeout: () => [],
+      );
       return snap;
     } catch (_) {
       return [];

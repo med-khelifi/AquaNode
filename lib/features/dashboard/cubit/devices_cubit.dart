@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:aqua_node/core/models/device.dart';
+import 'package:aqua_node/core/services/firebase/firebase.dart';
 import 'package:aqua_node/data/repositories/device_repository.dart';
 import 'package:aqua_node/features/dashboard/cubit/devices_state.dart';
 
@@ -19,19 +20,7 @@ class DevicesCubit extends Cubit<DevicesState> {
     emit(state.copyWith(status: DevicesStatus.loading));
     await _devicesSubscription?.cancel();
 
-    try {
-      final initial = await _deviceRepository.getDevices();
-      emit(state.copyWith(
-        status: DevicesStatus.success,
-        devices: initial,
-      ));
-    } catch (e) {
-      emit(state.copyWith(
-        status: DevicesStatus.failure,
-        errorMessage: e.toString(),
-      ));
-      return;
-    }
+    final firstEmitCompleter = Completer<void>();
 
     _devicesSubscription = _deviceRepository.watchDevices().listen(
       (devices) {
@@ -39,14 +28,22 @@ class DevicesCubit extends Cubit<DevicesState> {
           status: DevicesStatus.success,
           devices: devices,
         ));
+        if (!firstEmitCompleter.isCompleted) {
+          firstEmitCompleter.complete();
+        }
       },
       onError: (e) {
         emit(state.copyWith(
           status: DevicesStatus.failure,
-          errorMessage: e.toString(),
+          errorMessage: FirebaseService.firestoreMessage(e),
         ));
+        if (!firstEmitCompleter.isCompleted) {
+          firstEmitCompleter.complete();
+        }
       },
     );
+
+    return firstEmitCompleter.future;
   }
 
   /// Updates device settings (name, location, enabled) locally and in Firebase.

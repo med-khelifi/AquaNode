@@ -48,9 +48,16 @@ class _AquaAppState extends State<AquaApp> {
             create: (_) => SettingsCubit(),
           ),
           BlocProvider(
-            create: (ctx) => DevicesCubit(
-              deviceRepository: ctx.read<DeviceRepository>(),
-            )..loadDevices(),
+            create: (ctx) {
+              final cubit = DevicesCubit(
+                deviceRepository: ctx.read<DeviceRepository>(),
+              );
+              // Only load devices if already authenticated
+              if (ctx.read<AuthRepository>().currentUser != null) {
+                cubit.loadDevices();
+              }
+              return cubit;
+            },
           ),
         ],
         child: BlocBuilder<SettingsCubit, SettingsState>(

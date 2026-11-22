@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:aqua_node/core/services/firebase/firebase.dart';
 import 'package:aqua_node/data/models/device.dart';
 import 'package:aqua_node/data/repositories/device_repository.dart';
 import 'package:aqua_node/features/history/cubit/history_state.dart';
@@ -24,7 +25,7 @@ class HistoryCubit extends Cubit<HistoryState> {
     } catch (e) {
       emit(state.copyWith(
         status: HistoryStatus.failure,
-        errorMessage: e.toString(),
+        errorMessage: FirebaseService.firestoreMessage(e),
         range: range,
       ));
     }

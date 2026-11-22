@@ -1,1 +1,25 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"aqua-node-f76da","appId":"1:718356797242:android:cc68b376a48690bbbae203","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"aqua-node-f76da","configurations":{"android":"1:718356797242:android:cc68b376a48690bbbae203","ios":"1:718356797242:ios:ae3efdf6897ccb51bae203"}}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "aqua-node-f76da",
+          "appId": "1:718356797242:android:cc68b376a48690bbbae203",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "aqua-node-f76da",
+          "configurations": {
+            "android": "1:718356797242:android:cc68b376a48690bbbae203",
+            "ios": "1:718356797242:ios:ae3efdf6897ccb51bae203"
+          }
+        }
+      }
+    }
+  }
+}
