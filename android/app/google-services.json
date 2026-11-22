@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "718356797242",
+    "project_id": "aqua-node-f76da",
+    "storage_bucket": "aqua-node-f76da.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:718356797242:android:cc68b376a48690bbbae203",
+        "android_client_info": {
+          "package_name": "com.example.aqua_node"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDp3LS5vT255S6TCyRnjPcxaOaxGyUQkEY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
