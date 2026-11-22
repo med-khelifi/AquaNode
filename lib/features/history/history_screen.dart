@@ -1,49 +1,106 @@
 import 'package:flutter/material.dart';
-import 'package:aqua_node/core/widgets/status_chip.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:aqua_node/core/widgets/state_message.dart';
+import 'package:aqua_node/core/widgets/status_chip.dart';
 import 'package:aqua_node/data/models/device.dart';
-import 'package:aqua_node/state/app_state.dart';
+import 'package:aqua_node/data/repositories/device_repository.dart';
+import 'package:aqua_node/features/history/cubit/history_cubit.dart';
 import 'package:aqua_node/features/history/widgets/metric_chart.dart';
+import 'package:aqua_node/features/settings/cubit/settings_cubit.dart';
 
-class HistoryScreen extends StatefulWidget {
+class HistoryScreen extends StatelessWidget {
   final Device d;
+
   const HistoryScreen(this.d, {super.key});
+
   @override
-  State<HistoryScreen> createState() => _HistState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (ctx) => HistoryCubit(
+        deviceRepository: ctx.read<DeviceRepository>(),
+      )..fetchHistory(d, Range.h24),
+      child: _HistoryView(d: d),
+    );
+  }
 }
 
-class _HistState extends State<HistoryScreen> {
-  Range _r = Range.h24;
-  late Future<List<Sample>> _f = store.history(widget.d, _r);
+class _HistoryView extends StatelessWidget {
+  final Device d;
+
+  const _HistoryView({required this.d});
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('History')),
-        body: ListView(padding: const EdgeInsets.all(16), children: [
-          SegmentedButton<Range>(
-            segments: [for (final r in Range.values) ButtonSegment(value: r, label: Text(r.label))],
-            selected: {_r}, showSelectedIcon: false,
-            onSelectionChanged: (s) => setState(() { _r = s.first; _f = store.history(widget.d, _r); }),
-          ),
-          const SizedBox(height: 16),
-          FutureBuilder<List<Sample>>(future: _f, builder: (context, snap) {
-            if (snap.connectionState != ConnectionState.done) {
-              return const Padding(padding: EdgeInsets.only(top: 80), child: Center(child: CircularProgressIndicator()));
-            }
-            if (snap.hasError) {
-              return StateMessage(Icons.error_outline, 'Could not load history', 'Check your connection and try again.',
-                  action: OutlinedButton(onPressed: () => setState(() => _f = store.history(widget.d, _r)), child: const Text('Retry')));
-            }
-            final data = snap.data!;
-            if (data.isEmpty) return const Padding(padding: EdgeInsets.only(top: 60), child: StateMessage(Icons.insights, 'No data yet', 'This device has not reported readings in this period.'));
-            return Column(children: [
-              MetricChart(title: 'Temperature', unit: store.tUnit, data: data, pick: (s) => store.tVal(s.temp), color: Theme.of(context).colorScheme.primary, range: _r),
-              const SizedBox(height: 12),
-              MetricChart(title: 'Humidity', unit: '%', data: data, pick: (s) => s.hum, color: tk(context).success, range: _r),
-              const SizedBox(height: 10),
-              Text('Gaps in the line mean the device reported no data.', style: TextStyle(color: tk(context).muted, fontSize: 12.5)),
-            ]);
-          }),
-        ]),
-      );
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('${d.name} History')),
+      body: BlocBuilder<HistoryCubit, HistoryState>(
+        builder: (context, state) {
+          final range = state.range;
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              SegmentedButton<Range>(
+                segments: const [
+                  ButtonSegment(value: Range.h1, label: Text('1h')),
+                  ButtonSegment(value: Range.h24, label: Text('24h')),
+                  ButtonSegment(value: Range.d7, label: Text('7d')),
+                ],
+                selected: {range},
+                showSelectedIcon: false,
+                onSelectionChanged: (s) => context.read<HistoryCubit>().fetchHistory(
+                      d,
+                      s.first,
+                    ),
+              ),
+              const SizedBox(height: 16),
+              if (state.status == HistoryStatus.loading)
+                const SizedBox(
+                  height: 240,
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (state.status == HistoryStatus.failure)
+                StateMessage(
+                  Icons.error_outline,
+                  'Failed to load history',
+                  state.errorMessage ?? 'An error occurred.',
+                  action: OutlinedButton(
+                    onPressed: () => context.read<HistoryCubit>().fetchHistory(d, range),
+                    child: const Text('Retry'),
+                  ),
+                )
+              else if (state.status == HistoryStatus.success) ...[
+                BlocBuilder<SettingsCubit, SettingsState>(
+                  builder: (context, settingsState) {
+                    return MetricChart(
+                      title: 'Temperature',
+                      unit: settingsState.tempUnit,
+                      data: state.data,
+                      pick: (s) => settingsState.convertTemp(s.temp),
+                      color: Theme.of(context).colorScheme.primary,
+                      range: range,
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                MetricChart(
+                  title: 'Humidity',
+                  unit: '%',
+                  data: state.data,
+                  pick: (s) => s.hum,
+                  color: tk(context).success,
+                  range: range,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Gaps in the line mean the device reported no data.',
+                  style: TextStyle(color: tk(context).muted, fontSize: 12.5),
+                ),
+              ],
+            ],
+          );
+        },
+      ),
+    );
+  }
 }
