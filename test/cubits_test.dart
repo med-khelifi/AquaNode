@@ -330,6 +330,24 @@ void main() {
       expect(updated.location, 'Roof');
       expect(updated.enabled, false);
     });
+
+    test('filter and search correctly filter devices', () async {
+      await devicesCubit.loadDevices();
+      expect(devicesCubit.state.filteredDevices.length, 4);
+
+      devicesCubit.setFilter(DeviceFilterType.active);
+      expect(devicesCubit.state.filter, DeviceFilterType.active);
+      expect(devicesCubit.state.filteredDevices.length, 2);
+
+      devicesCubit.setFilter(DeviceFilterType.inactive);
+      expect(devicesCubit.state.filter, DeviceFilterType.inactive);
+      expect(devicesCubit.state.filteredDevices.length, 2);
+
+      devicesCubit.setFilter(DeviceFilterType.all);
+      devicesCubit.setSearchQuery('Greenhouse');
+      expect(devicesCubit.state.filteredDevices.length, 1);
+      expect(devicesCubit.state.filteredDevices.first.id, 'AQN-001A');
+    });
   });
 
   group('HistoryCubit', () {

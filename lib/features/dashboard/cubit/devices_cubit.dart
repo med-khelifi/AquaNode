@@ -46,6 +46,24 @@ class DevicesCubit extends Cubit<DevicesState> {
     return firstEmitCompleter.future;
   }
 
+  /// Sets the active dashboard filter (all, active, inactive).
+  void setFilter(DeviceFilterType filter) {
+    emit(state.copyWith(filter: filter));
+  }
+
+  /// Sets the search filter query for filtering devices.
+  void setSearchQuery(String query) {
+    emit(state.copyWith(searchQuery: query));
+  }
+
+  /// Resets filter to all and clears search query.
+  void resetFilter() {
+    emit(state.copyWith(
+      filter: DeviceFilterType.all,
+      searchQuery: '',
+    ));
+  }
+
   /// Updates device settings (name, location, enabled) locally and in Firebase.
   void updateDevice(Device updated) {
     _deviceRepository.updateDevice(updated);
