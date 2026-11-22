@@ -61,7 +61,13 @@ class _AquaAppState extends State<AquaApp> {
               theme: lightTheme,
               darkTheme: darkTheme,
               themeMode: settingsState.themeMode,
-              home: BlocBuilder<AuthCubit, AuthState>(
+              home: BlocConsumer<AuthCubit, AuthState>(
+                listenWhen: (prev, curr) =>
+                    prev.status != curr.status && curr.isAuthenticated,
+                listener: (context, authState) {
+                  // Re-load devices from Firebase Firestore when user signs in
+                  context.read<DevicesCubit>().loadDevices();
+                },
                 builder: (context, authState) {
                   if (authState.isAuthenticated) {
                     return const DashboardScreen();

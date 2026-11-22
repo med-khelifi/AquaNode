@@ -11,8 +11,15 @@ class SignInScreen extends StatefulWidget {
 }
 
 class _SignInState extends State<SignInScreen> {
-  final _email = TextEditingController(text: 'operator@aquanode.io');
-  final _pass = TextEditingController(text: 'correct123');
+  final _email = TextEditingController();
+  final _pass = TextEditingController();
+
+  @override
+  void dispose() {
+    _email.dispose();
+    _pass.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +58,7 @@ class _SignInState extends State<SignInScreen> {
                     const SizedBox(height: 24),
                     TextField(
                       controller: _email,
+                      keyboardType: TextInputType.emailAddress,
                       decoration: const InputDecoration(
                         labelText: 'Email',
                         prefixIcon: Icon(Icons.email_outlined),

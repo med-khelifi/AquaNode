@@ -90,7 +90,7 @@ class DeviceDetailsScreen extends StatelessWidget {
               Card(
                 child: ListTile(
                   leading: const Icon(Icons.tune),
-                  title: const Text('Valve'),
+                  title: const Text('Valve & Relay Control'),
                   subtitle: Text(d.valveOpen ? 'Open' : 'Closed'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => Navigator.of(context).push(

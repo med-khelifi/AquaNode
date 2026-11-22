@@ -1,105 +1,117 @@
-import 'dart:math';
-import 'package:aqua_node/data/models/device.dart';
+import 'package:aqua_node/core/enums/enums.dart';
+import 'package:aqua_node/core/models/command.dart';
+import 'package:aqua_node/core/models/device.dart';
+import 'package:aqua_node/core/models/masurement.dart';
+import 'package:aqua_node/core/services/firebase/firebase.dart';
 
-/// Repository managing devices, valve controls, and metric history.
+/// Repository managing devices, valve controls, and metric history with Firebase service.
 class DeviceRepository {
-  final now = DateTime.now();
-  late final List<Device> _devices = [
-    Device(
-      'AQN-001A',
-      'Greenhouse Tank',
-      'Greenhouse',
-      '1.4.2',
-      Conn.online,
-      now.subtract(const Duration(seconds: 20)),
-      temp: 22.4,
-      hum: 61,
-      valveOpen: true,
-      verify: Verify.verified,
-    ),
-    Device(
-      'AQN-002B',
-      'Pump Room',
-      'Basement',
-      '1.4.2',
-      Conn.online,
-      now.subtract(const Duration(minutes: 1)),
-      temp: 18.9,
-      hum: 72,
-      valveOpen: false,
-      verify: Verify.pending,
-    ),
-    Device(
-      'AQN-003C',
-      'Garden Line',
-      'Backyard',
-      '1.3.9',
-      Conn.offline,
-      now.subtract(const Duration(hours: 5)),
-      temp: 25.1,
-      hum: 48,
-      valveOpen: false,
-      verify: Verify.unknown,
-    ),
-    Device('AQN-004D', 'Spare Node', 'Unassigned', '1.4.2', Conn.never, null),
-  ];
+  final FirebaseService? _firebaseService;
 
+  DeviceRepository({FirebaseService? firebaseService})
+      : _firebaseService = firebaseService;
+
+  FirebaseService get _service => _firebaseService ?? FirebaseService.instance;
+
+  /// Stream of live devices from Firebase Firestore for the authenticated user.
+  Stream<List<Device>> watchDevices() {
+    try {
+      return _service.watchDevices();
+    } catch (_) {
+      return const Stream.empty();
+    }
+  }
+
+  /// Watch a single device live from Firebase Firestore.
+  Stream<Device?> watchDevice(String deviceId) {
+    try {
+      return _service.watchDevice(deviceId);
+    } catch (_) {
+      return const Stream.empty();
+    }
+  }
+
+  /// Stream latest live sensor measurement from Firebase Firestore.
+  Stream<Measurement?> watchLatestMeasurement(String deviceId) {
+    try {
+      return _service.watchLatest(deviceId);
+    } catch (_) {
+      return const Stream.empty();
+    }
+  }
+
+  /// Fetches devices from Firestore once.
   Future<List<Device>> getDevices() async {
-    await Future.delayed(const Duration(milliseconds: 100));
-    return List<Device>.from(_devices);
-  }
-
-  void updateDevice(Device updated) {
-    final idx = _devices.indexWhere((d) => d.id == updated.id);
-    if (idx != -1) {
-      _devices[idx] = updated;
+    try {
+      final snap = await _service.watchDevices().first;
+      return snap;
+    } catch (_) {
+      return [];
     }
   }
 
+  /// Updates device settings (name, location, enabled) in Firestore.
+  Future<void> updateDevice(Device updated) async {
+    try {
+      await _service.updateDeviceSettings(
+        updated.id,
+        name: updated.name,
+        locationLabel: updated.location,
+        isEnabled: updated.enabled,
+      );
+    } catch (_) {}
+  }
+
+  /// Sends a valve actuation command to Firebase Firestore and returns the command document ID.
+  Future<String> sendValveCommand(String deviceId, CommandAction action) async {
+    return await _service.sendValveCommand(deviceId, action);
+  }
+
+  /// Live status of a command from Firebase Firestore.
+  Stream<Command?> watchCommand(String commandId) {
+    try {
+      return _service.watchCommand(commandId);
+    } catch (_) {
+      return const Stream.empty();
+    }
+  }
+
+  /// Streams real-time commands for a device from Firebase.
+  Stream<List<Command>> watchCommands(String deviceId, {int limit = 20}) {
+    try {
+      return _service.watchCommands(deviceId, limit: limit);
+    } catch (_) {
+      return const Stream.empty();
+    }
+  }
+
+  /// Cancels a pending command in Firestore.
+  Future<void> cancelCommand(String commandId) async {
+    await _service.cancelCommand(commandId);
+  }
+
+  /// Valve toggle helper that dispatches command and waits for execution confirmation.
   Future<bool> setValve(String deviceId, bool open) async {
-    final d = _devices.firstWhere((dev) => dev.id == deviceId);
-    d.valveOpen = open;
-    d.verify = Verify.pending;
-    await Future.delayed(const Duration(seconds: 2));
-    final ok = d.conn == Conn.online;
-    d.verify = ok ? Verify.verified : Verify.failed;
-    return ok;
+    final action = open ? CommandAction.open : CommandAction.close;
+    final cmdId = await _service.sendValveCommand(deviceId, action);
+    await for (final cmd in watchCommand(cmdId).take(5)) {
+      if (cmd?.status == CommandStatus.executed) return true;
+      if (cmd?.status == CommandStatus.failed ||
+          cmd?.status == CommandStatus.cancelled ||
+          cmd?.status == CommandStatus.expired) {
+        return false;
+      }
+    }
+    return true;
   }
 
+  /// Queries telemetry history directly from Firebase Firestore. Bad sensor reads filtered out.
   Future<List<Sample>> getHistory(Device d, Range r) async {
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (d.lastSeen == null) return [];
-    final end = d.lastSeen!;
     final start = DateTime.now().subtract(r.span);
-    final rnd = Random(d.id.hashCode);
-    final raw = <Sample>[];
-    final outStart = start.add(r.span * .45);
-    final outEnd = start.add(r.span * .52);
-
-    for (var t = start; t.isBefore(end); t = t.add(const Duration(minutes: 1))) {
-      if (d.id == 'AQN-001A' && t.isAfter(outStart) && t.isBefore(outEnd)) continue;
-      final h = t.millisecondsSinceEpoch / 3.6e6;
-      raw.add(
-        Sample(
-          t,
-          d.temp + 3 * sin(h / 3) + rnd.nextDouble() - .5,
-          (d.hum + 10 * cos(h / 4) + rnd.nextDouble() * 2).clamp(0, 100),
-        ),
-      );
-    }
-    final b = r.bucketMin;
-    if (b == 1) return raw;
-    final out = <Sample>[];
-    for (var i = 0; i < raw.length; i += b) {
-      final c = raw.sublist(i, min(i + b, raw.length));
-      out.add(
-        Sample(
-          c.first.t,
-          c.map((s) => s.temp).reduce((a, b) => a + b) / c.length,
-          c.map((s) => s.hum).reduce((a, b) => a + b) / c.length,
-        ),
-      );
-    }
-    return out;
+    final measurements = await _service.history(d.id, start);
+    return measurements
+        .where((m) => m.isPlausible)
+        .map((m) => Sample(m.sampledAt, m.temperatureC, m.humidityPct))
+        .toList();
   }
 }

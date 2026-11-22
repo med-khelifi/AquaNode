@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:aqua_node/core/widgets/shimmer.dart';
 import 'package:aqua_node/core/widgets/state_message.dart';
 import 'package:aqua_node/core/widgets/status_chip.dart';
 import 'package:aqua_node/data/models/device.dart';
@@ -55,10 +56,7 @@ class _HistoryView extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               if (state.status == HistoryStatus.loading)
-                const SizedBox(
-                  height: 240,
-                  child: Center(child: CircularProgressIndicator()),
-                )
+                const HistoryShimmer()
               else if (state.status == HistoryStatus.failure)
                 StateMessage(
                   Icons.error_outline,

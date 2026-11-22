@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:aqua_node/core/theme/app_colors.dart';
 import 'package:aqua_node/core/theme/app_typography.dart';
+import 'package:aqua_node/core/theme/extensions/shimmer_colors.dart';
 import 'package:aqua_node/core/theme/extensions/status_colors.dart';
 
 /// Dark Theme for Aqua Node built from [AppColors].
@@ -75,5 +76,6 @@ final ThemeData darkTheme = ThemeData(
   ),
   extensions: [
     StatusColors.dark(),
+    ShimmerColors.dark(),
   ],
 );

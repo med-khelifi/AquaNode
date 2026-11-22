@@ -12,7 +12,9 @@ class FirebaseService {
       : _db = db ?? FirebaseFirestore.instance,
         _auth = auth ?? FirebaseAuth.instance;
 
-  static final FirebaseService instance = FirebaseService._();
+  static FirebaseService? _instance;
+  static FirebaseService get instance => _instance ??= FirebaseService._();
+  static set instance(FirebaseService service) => _instance = service;
 
   /// For tests (e.g. fake_cloud_firestore / emulator).
   factory FirebaseService.forTesting({required FirebaseFirestore db, required FirebaseAuth auth}) =>
@@ -33,8 +35,6 @@ class FirebaseService {
     if (u == null) throw StateError('Not signed in');
     return u.uid;
   }
-
-  get Timestamp => null;
 
   Future<void> signIn(String email, String password) =>
       _auth.signInWithEmailAndPassword(email: email, password: password);

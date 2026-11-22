@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:aqua_node/core/widgets/shimmer.dart';
 import 'package:aqua_node/core/widgets/state_message.dart';
 import 'package:aqua_node/core/widgets/status_chip.dart';
 import 'package:aqua_node/features/dashboard/cubit/devices_cubit.dart';
@@ -22,9 +23,7 @@ class _DashState extends State<DashboardScreen> {
     return BlocBuilder<DevicesCubit, DevicesState>(
       builder: (context, state) {
         if (state.status == DevicesStatus.loading) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+          return const DashboardShimmer();
         }
 
         if (state.status == DevicesStatus.failure) {

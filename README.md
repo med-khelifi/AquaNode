@@ -6,7 +6,8 @@ Flutter smart-home / industrial IoT dashboard (Light/Dark/System theme, fl_chart
     flutter pub get
     flutter run
 
-Demo login: any valid email + 6+ char password (`wrong123` shows the error state). Data is mocked.
+## Architecture
+Aqua Node connects directly to Firebase Authentication and Cloud Firestore (`devices`, `commands`, `measurements`).
 
 ## Structure
     lib/
