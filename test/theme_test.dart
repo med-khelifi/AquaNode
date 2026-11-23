@@ -71,7 +71,12 @@ void main() {
       expect(lerped.baseColor, Color.lerp(shimLight.baseColor, shimDark.baseColor, 0.5));
     });
 
-    testWidgets('Shimmer and ShimmerBox render with theme-aware colors', (tester) async {
+    testWidgets('Shimmer and ShimmerBox render with theme-aware colors without overflow on narrow screens', (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       await tester.pumpWidget(
         MaterialApp(
           theme: lightTheme,

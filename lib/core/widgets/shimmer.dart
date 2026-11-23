@@ -155,13 +155,24 @@ class DashboardShimmer extends StatelessWidget {
             // Search Bar Shimmer
             const ShimmerBox(height: 52, borderRadius: 12),
             const SizedBox(height: 12),
-            // Filter Chips Row
-            Row(
-              children: List.generate(
-                4,
-                (i) => Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ShimmerBox(width: 60.0 + (i * 15), height: 32, borderRadius: 16),
+            // Filter Bar Shimmer
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+              ),
+              child: Row(
+                children: List.generate(
+                  3,
+                  (i) => Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: i == 1 ? 3 : 0),
+                      child: const ShimmerBox(height: 32, borderRadius: 8),
+                    ),
+                  ),
                 ),
               ),
             ),
